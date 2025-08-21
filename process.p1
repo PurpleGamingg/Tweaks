@@ -1,0 +1,35 @@
+# StopAllNonCriticalProcesses.ps1
+# Beendet alle nicht-kritischen Prozesse und schützt wichtige Systemprozesse
+
+Write-Host "Stopping all non-critical processes..."
+
+# Liste kritischer Prozesse, die auf jeden Fall laufen bleiben müssen
+$protected = @(
+    "explorer",       # Windows Explorer
+    "powershell",     # PowerShell
+    "pwsh",           # PowerShell Core
+    "cmd",            # Eingabeaufforderung
+    "winlogon",       # Login Session
+    "csrss",          # Client/Server Runtime
+    "services",       # Service Host
+    "lsass",          # Local Security Authority
+    "svchost",        # Windows Services Host
+    "dwm",            # Desktop Window Manager
+    "System",         # Kernprozesse
+    "smss",           # Session Manager
+    "taskhostw"       # Taskhost
+)
+
+# Alle Prozesse abfragen, die NICHT in der geschützten Liste sind
+$processes = Get-Process | Where-Object { $_.Name -notin $protected }
+
+foreach ($proc in $processes) {
+    try {
+        Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+        Write-Host "Stopped $($proc.Name)"
+    } catch {
+        Write-Host "Could not stop $($proc.Name)"
+    }
+}
+
+Write-Host "Finished stopping non-critical processes."
